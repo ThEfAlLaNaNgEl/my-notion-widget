@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Minimal Countdown</title>
+    <style>
+        :root {
+            --bg-color: #0d0e11;
+            --accent-color: #00ffaa;
+            --text-main: #ffffff;
+            --text-muted: #626875;
+            --panel-bg: rgba(255, 255, 255, 0.03);
+            --panel-border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .container {
+            text-align: center;
+            padding: 2rem;
+            border-radius: 16px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .countdown-grid {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .time-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .number {
+            font-family: monospace;
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            color: var(--text-main);
+            position: relative;
+            line-height: 1;
+        }
+
+        .number::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent-color);
+            box-shadow: 0 0 8px var(--accent-color);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .time-block:hover .number::after {
+            transform: scaleX(1);
+        }
+
+        .label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-weight: 600;
+        }
+
+        .separator {
+            font-family: monospace;
+            font-size: 2.5rem;
+            color: var(--text-muted);
+            animation: pulse 1.5s infinite;
+            line-height: 1;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; color: var(--accent-color); }
+        }
+
+        /* Config Panel hidden by default, shows on hover/tap */
+        .config-trigger {
+            margin-top: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+            border: none;
+            background: none;
+        }
+
+        .config-trigger:hover {
+            color: var(--accent-color);
+        }
+
+        .config-panel {
+            display: none;
+            margin-top: 1rem;
+            gap: 0.5rem;
+        }
+
+        .config-panel.show {
+            display: flex;
+            justify-content: center;
+        }
+
+        input[type="datetime-local"] {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 0.4rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            outline: none;
+        }
+
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        button.save-btn {
+            background: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="countdown-grid">
+            <div class="time-block">
+                <span class="number" id="days">00</span>
+                <span class="label">Days</span>
+            </div>
+            <div class="separator">:</div>
+            <div class="time-block">
+                <span class="number" id="hours">00</span>
+                <span class="label">Hours</span>
+            </div>
+            <div class="separator">:</div>
+            <div class="time-block">
+                <span class="number" id="minutes">00</span>
+                <span class="label">Mins</span>
+            </div>
+            <div class="separator">:</div>
+            <div class="time-block">
+                <span class="number" id="seconds">00</span>
+                <span class="label">Secs</span>
+            </div>
+        </div>
+
+        <button class="config-trigger" onclick="toggleConfig()">[ Edit Target ]</button>
+        <div class="config-panel" id="configPanel">
+            <input type="datetime-local" id="targetInput">
+            <button class="save-btn" onclick="saveTarget()">Set</button>
+        </div>
+    </div>
+
+    <script>
+        // Default target: New Year if nothing is saved
+        let targetDate = localStorage.getItem('notion-countdown-target') 
+            ? new Date(localStorage.getItem('notion-countdown-target'))
+            : new Date(new Date().getFullYear() + 1, 0, 1);
+
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const difference = targetDate.getTime() - now;
+
+            if (difference <= 0) {
+                document.getElementById('days').innerText = "00";
+                document.getElementById('hours').innerText = "00";
+                document.getElementById('minutes').innerText = "00";
+                document.getElementById('seconds').innerText = "00";
+                return;
+            }
+
+            const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+            const h = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const m = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((difference % (1000 * 60)) / 1000);
+
+            document.getElementById('days').innerText = d.toString().padStart(2, '0');
+            document.getElementById('hours').innerText = h.toString().padStart(2, '0');
+            document.getElementById('minutes').innerText = m.toString().padStart(2, '0');
+            document.getElementById('seconds').innerText = s.toString().padStart(2, '0');
+        }
+
+        function toggleConfig() {
+            const panel = document.getElementById('configPanel');
+            panel.classList.toggle('show');
+            
+            // Pre-fill input with current target format accepted by input type
+            const tzoffset = targetDate.getTimezoneOffset() * 60000; 
+            const localISOTime = (new Date(targetDate - tzoffset)).toISOString().slice(0, 16);
+            document.getElementById('targetInput').value = localISOTime;
+        }
+
+        function saveTarget() {
+            const inputVal = document.getElementById('targetInput').value;
+            if (inputVal) {
+                localStorage.setItem('notion-countdown-target', inputVal);
+                targetDate = new Date(inputVal);
+                toggleConfig();
+                updateCountdown();
+            }
+        }
+
+        // Run loop
+        setInterval(updateCountdown, 1000);
+        updateCountdown();
+    </script>
+</body>
+</html>
